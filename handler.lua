@@ -50,6 +50,14 @@ function JwtClaimsHeadersHandler:access(conf)
   local continue_on_error = conf.continue_on_error
 
   local token, err = retrieve_token(ngx.req, conf)
+  
+  local ttype = type(token)
+  if ttype ~= "string" then
+    if ttype == "nil" and continue_on_error then
+      return 
+    end
+  end
+
   if err and not continue_on_error then
     return responses.send_HTTP_INTERNAL_SERVER_ERROR(err)
   end
