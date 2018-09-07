@@ -15,6 +15,14 @@ local function retrieve_token(request, conf)
     end
   end
 
+  local ngx_var = ngx.var
+  for _, v in ipairs(conf.cookie_names) do
+    local jwt_cookie = ngx_var["cookie_" .. v]
+    if jwt_cookie and jwt_cookie ~= "" then
+      return jwt_cookie
+    end
+  end
+
   local authorization_header = request.get_headers()["authorization"]
   if authorization_header then
     local iterator, iter_err = ngx_re_gmatch(authorization_header, "\\s*[Bb]earer\\s+(.+)")
