@@ -71,6 +71,8 @@ function JwtClaimsHeadersHandler:access(conf)
     return responses.send_HTTP_INTERNAL_SERVER_ERROR()
   end
 
+  kong.response.add_header('Set-Cookie', 'unsafe_logged_in=1; Max-Age=300; Secure;')
+
   local claims = jwt.claims
   for claim_key,claim_value in pairs(claims) do
     for _,claim_pattern in pairs(conf.claims_to_include) do      
