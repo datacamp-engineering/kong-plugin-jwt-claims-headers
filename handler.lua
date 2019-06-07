@@ -71,7 +71,7 @@ function JwtClaimsHeadersHandler:access(conf)
     return responses.send_HTTP_INTERNAL_SERVER_ERROR()
   end
 
-  kong.response.add_header('Set-Cookie', 'unsafe_logged_in=1; Max-Age=300; Secure;')
+  ngx.ctx.jwt_logged_in = true
 
   local claims = jwt.claims
   for claim_key,claim_value in pairs(claims) do
@@ -80,6 +80,14 @@ function JwtClaimsHeadersHandler:access(conf)
         req_set_header("X-"..claim_key, claim_value)
       end
     end
+  end
+end
+
+function JwtClaimsHeadersHandler:header_filter(conf)
+  JwtClaimsHeadersHandler.super.header_filter(self)
+
+  if ngx.ctx.jwt_logged_in then
+    kong.response.add_header('Set-Cookie', 'unsafe_logged_in=1; Max-Age=300; Secure;')
   end
 end
 
