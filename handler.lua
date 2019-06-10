@@ -87,13 +87,14 @@ end
 
 function JwtClaimsHeadersHandler:header_filter(conf)
   JwtClaimsHeadersHandler.super.header_filter(self)
+  local params = "Max-Age=15; Secure;"
 
   if ngx.ctx.jwt_logged_in then
-    kong.response.add_header('Set-Cookie', 'unsafe_logged_in=1; Max-Age=300; Secure;')
+    kong.response.add_header('Set-Cookie', string.format('unsafe_logged_in=1; %s', params))
   end
 
   if ngx.ctx.jwt_claims and ngx.ctx.jwt_claims['user_id'] ~= nil then
-    kong.response.add_header('Set-Cookie', string.format('unsafe_user_id=%s; Max-Age=300; Secure;', ngx.ctx.jwt_claims['user_id']))
+    kong.response.add_header('Set-Cookie', string.format('unsafe_user_id=%s; %s', ngx.ctx.jwt_claims['user_id'], params))
   end
 end
 
