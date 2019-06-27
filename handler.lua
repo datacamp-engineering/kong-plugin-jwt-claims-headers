@@ -1,9 +1,10 @@
 local BasePlugin = require "kong.plugins.base_plugin"
-local responses = require "kong.tools.responses"
 local jwt_decoder = require "kong.plugins.jwt.jwt_parser"
 local req_set_header = ngx.req.set_header
 local ngx_re_gmatch = ngx.re.gmatch
 
+local HTTP_INTERNAL_SERVER_ERROR = 500
+local HTTP_UNAUTHORIZED = 401
 local JwtClaimsHeadersHandler = BasePlugin:extend()
 
 local function retrieve_token(request, conf)
@@ -59,16 +60,22 @@ function JwtClaimsHeadersHandler:access(conf)
   end
 
   if err and not continue_on_error then
-    return responses.send_HTTP_INTERNAL_SERVER_ERROR(err)
+    kong.log.err("error retrieving token: ", tostring(err))
+    return kong.response.exit(HTTP_INTERNAL_SERVER_ERROR, {
+      message = "An unexpected error occurred"
+    })
   end
 
   if not token and not continue_on_error then
-    return responses.send_HTTP_UNAUTHORIZED()
+    return kong.response.exit(HTTP_UNAUTHORIZED, "Not authorized")
   end
 
   local jwt, err = jwt_decoder:new(token)
   if err and not continue_on_error then
-    return responses.send_HTTP_INTERNAL_SERVER_ERROR()
+    kong.log.err("error decoding token: ", tostring(err))
+    return kong.response.exit(HTTP_INTERNAL_SERVER_ERROR, {
+      message = "An unexpected error occurred"
+    })
   end
 
   ngx.ctx.jwt_logged_in = true
