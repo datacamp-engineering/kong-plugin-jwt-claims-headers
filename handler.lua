@@ -6,6 +6,9 @@ local ngx_re_gmatch = ngx.re.gmatch
 local HTTP_INTERNAL_SERVER_ERROR = 500
 local HTTP_UNAUTHORIZED = 401
 local JwtClaimsHeadersHandler = BasePlugin:extend()
+-- See https://docs.konghq.com/2.0.x/plugin-development/custom-logic/#plugins-execution-order
+-- Must execute before the request-transformer plugin because it sets variables in the shared context
+JwtClaimsHeadersHandler.PRIORITY = 970 
 
 local function retrieve_token(request, conf)
   local uri_parameters = request.get_uri_args()
@@ -80,12 +83,14 @@ function JwtClaimsHeadersHandler:access(conf)
 
   ngx.ctx.jwt_logged_in = true
   ngx.ctx.jwt_claims = {}
+  kong.ctx.shared.jwt_claims = {}
 
   local claims = jwt.claims
   for claim_key,claim_value in pairs(claims) do
     for _,claim_pattern in pairs(conf.claims_to_include) do      
       if string.match(claim_key, "^"..claim_pattern.."$") then
         ngx.ctx.jwt_claims[claim_key] = claim_value
+        kong.ctx.shared.jwt_claims[claim_key] = claim_value
         req_set_header("X-"..claim_key, claim_value)
       end
     end
