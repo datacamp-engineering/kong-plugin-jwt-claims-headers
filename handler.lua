@@ -84,6 +84,7 @@ function JwtClaimsHeadersHandler:access(conf)
   ngx.ctx.jwt_logged_in = true
   ngx.ctx.jwt_claims = {}
   kong.ctx.shared.jwt_claims = {}
+  kong.ctx.shared.jwt_token = token
 
   local claims = jwt.claims
   for claim_key,claim_value in pairs(claims) do
