@@ -2,6 +2,8 @@ local BasePlugin = require "kong.plugins.base_plugin"
 local jwt_decoder = require "kong.plugins.jwt.jwt_parser"
 local req_set_header = ngx.req.set_header
 local ngx_re_gmatch = ngx.re.gmatch
+local req_clear_header = ngx.req.clear_header
+
 
 local HTTP_INTERNAL_SERVER_ERROR = 500
 local HTTP_UNAUTHORIZED = 401
@@ -52,6 +54,7 @@ end
 function JwtClaimsHeadersHandler:access(conf)
   JwtClaimsHeadersHandler.super.access(self)
   local continue_on_error = conf.continue_on_error
+  req_clear_header("X-user_id") 
 
   local token, err = retrieve_token(ngx.req, conf)
   
