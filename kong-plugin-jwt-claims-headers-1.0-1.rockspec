@@ -13,7 +13,7 @@ dependencies = {
 build = {
   type = "builtin",
   modules = {
-    ["kong.plugins.jwt-claims-headers.handler"] = "handler.lua",
-    ["kong.plugins.jwt-claims-headers.schema"]  = "schema.lua"
+    ["kong.plugins.jwt-claims-headers.handler"] = "src/handler.lua",
+    ["kong.plugins.jwt-claims-headers.schema"]  = "src/schema.lua"
   }
 }

@@ -1,0 +1,39 @@
+_format_version: "2.1"
+
+services:
+  - name: test-service
+    host: httpbin
+    port: 80
+    plugins:
+      - name: jwt
+        config:
+          secret_is_base64: false
+          run_on_preflight: true
+          anonymous: 1cd57acc-61b9-5afa-9668-80123fa9b98d # You might need to tweak this one, have a look with curl `http://localhost:8001/consumers | jq`
+          cookie_names:
+            - _dct
+      - name: jwt-claims-headers
+        config:
+          continue_on_error: true
+          cookie_names:
+            - _dct
+    routes:
+      - name: root
+        preserve_host: true
+        paths:
+          - /
+        protocols:
+          - http
+          - https
+
+consumers:
+- username: anonymous
+  custom_id: b1fd6a03-a21a-4b4d-919e-05b3b026c8e2
+- username: datacamp-users
+  custom_id: d3109d1c-cdc5-45c7-bd93-dadb5d38e1ba
+
+jwt_secrets:
+- consumer: datacamp-users
+  algorithm: RS256
+  key: https://www.datacamp.com
+  rsa_public_key: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmdvyF8DqU+oBKOzQL5mE\nFzXj2A8es5h5Ig/KUV5OxGQdKwQLHpPJcmEywQK9uNJjXQPYmOScRgRW9P+hvqbx\nRVFcsM+klwaPizt5yiwi11cuzY6eBY4Fx+A1I3VjyHQafXr49Uqaa5EB5/fM4yWl\ny/69IN+abH8K0+M3Xvi26aDXSIARaLBDRS7TBsxDdR+S6rG4yw4vhK4Yy2bveulb\nohPRg3teEZX2Z+4E7pcarabI46HV3+hiDlLfbmwr4KggqMyeU+c3wZxjvcmW2R0i\nRTH+jbd3jZQxY7rAtuV0QX2+STj87sT2/T/w011nicw5laGArRUjMbaBDFdZtCdW\nvQIDAQAB\n-----END PUBLIC KEY-----"

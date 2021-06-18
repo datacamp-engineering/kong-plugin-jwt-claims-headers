@@ -54,14 +54,14 @@ end
 function JwtClaimsHeadersHandler:access(conf)
   JwtClaimsHeadersHandler.super.access(self)
   local continue_on_error = conf.continue_on_error
-  req_clear_header("X-user_id") 
+  req_clear_header("X-user_id")
 
   local token, err = retrieve_token(ngx.req, conf)
   
   local ttype = type(token)
   if ttype ~= "string" then
     if ttype == "nil" and continue_on_error then
-      return 
+      return
     end
   end
 
@@ -89,9 +89,14 @@ function JwtClaimsHeadersHandler:access(conf)
   kong.ctx.shared.jwt_claims = {}
   kong.ctx.shared.jwt_token = token
 
+  local anonymous_consumer = ngx.req.get_headers()["x-anonymous-consumer"]
+  if anonymous_consumer == "true" then
+    return
+  end
+
   local claims = jwt.claims
   for claim_key,claim_value in pairs(claims) do
-    for _,claim_pattern in pairs(conf.claims_to_include) do      
+    for _,claim_pattern in pairs(conf.claims_to_include) do
       if string.match(claim_key, "^"..claim_pattern.."$") then
         ngx.ctx.jwt_claims[claim_key] = claim_value
         kong.ctx.shared.jwt_claims[claim_key] = claim_value
