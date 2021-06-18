@@ -53,7 +53,7 @@ To run the integration tests kong requires you to spin up a kong instance and at
 To get started run
 
 ```sh
-make start-test
+make start
 ```
 
 Ths will spin up all the required components. Run the kong migrations for the specified version and run the integration test for this plugin.

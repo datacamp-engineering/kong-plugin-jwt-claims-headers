@@ -56,7 +56,7 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
-    command: kong test
+    command: sleep infinity
     environment:
       KONG_TEST_DATABASE: postgres
       KONG_TEST_PG_HOST: postgres

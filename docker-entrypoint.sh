@@ -27,9 +27,9 @@ file_env() {
 }
 
 if [ ! -z "$(ls -A /plugin/)" ]; then
-  pushd /plugin/
+  pushd /plugin/ > /dev/null
   /usr/local/bin/luarocks make
-  popd
+  popd > /dev/null
 fi
 
 if [[ "$1" == "kong" ]]; then

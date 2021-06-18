@@ -1,10 +1,14 @@
-.PHONY: start-tests
-start-tests:
-	docker compose -f docker-compose-test.yml up
+.PHONY: start
+start:
+	docker compose -f docker-compose-test.yml up --build
+
+.PHONY: stop
+stop:
+	docker compose -f docker-compose-test.yml down
 
 .PHONY: test
 test:
-	docker compose restart kong
+	docker compose exec kong /docker-entrypoint.sh kong test
 
 .PHONY: demo
 demo:
