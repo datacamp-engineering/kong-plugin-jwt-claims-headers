@@ -46,3 +46,31 @@ form parameter|required|description
 `claims_to_include`|*required*|A list of claims that Kong will expose in request headers. Lua pattern expressions are valid, e.g., `kong-.*` will include `kong-id`, `kong-email`, etc. Defaults to `.*` (include all claims). 
 `continue_on_error`|*required*|Whether to send the request to the upstream service if a failure occurs (no JWT token present, error decoding, etc). Defaults to `true`.
 
+# Testing
+
+To run the integration tests kong requires you to spin up a kong instance and attach it to a postgres DB. All the steps required to start the integration tests are in the `docker-compose-test.yaml`. It's required to have `docker` and `docker-compose` installed to be able to run these tests.
+
+To get started run
+
+```sh
+make start
+```
+
+Ths will spin up all the required components. Run the kong migrations for the specified version and run the integration test for this plugin.
+
+To rerun the tests simply run:
+
+```sh
+make test
+```
+
+Volumes are setup so that changes are automatically picked up so that `make test` always test for the latest changes on disk.
+
+To do some manual testing run:
+
+```sh
+make demo
+```
+
+This wills pin up a demo environment of kong without a DB using a declarative config defined in `config/kong.yml`
+

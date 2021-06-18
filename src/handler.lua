@@ -1,16 +1,17 @@
 local BasePlugin = require "kong.plugins.base_plugin"
 local jwt_decoder = require "kong.plugins.jwt.jwt_parser"
+local constants = require "kong.constants"
+
 local req_set_header = ngx.req.set_header
 local ngx_re_gmatch = ngx.re.gmatch
 local req_clear_header = ngx.req.clear_header
-
 
 local HTTP_INTERNAL_SERVER_ERROR = 500
 local HTTP_UNAUTHORIZED = 401
 local JwtClaimsHeadersHandler = BasePlugin:extend()
 -- See https://docs.konghq.com/2.0.x/plugin-development/custom-logic/#plugins-execution-order
 -- Must execute before the request-transformer plugin because it sets variables in the shared context
-JwtClaimsHeadersHandler.PRIORITY = 970 
+JwtClaimsHeadersHandler.PRIORITY = 970
 
 local function retrieve_token(request, conf)
   local uri_parameters = request.get_uri_args()
@@ -54,14 +55,14 @@ end
 function JwtClaimsHeadersHandler:access(conf)
   JwtClaimsHeadersHandler.super.access(self)
   local continue_on_error = conf.continue_on_error
-  req_clear_header("X-user_id") 
+  req_clear_header("X-user_id")
 
   local token, err = retrieve_token(ngx.req, conf)
   
   local ttype = type(token)
   if ttype ~= "string" then
     if ttype == "nil" and continue_on_error then
-      return 
+      return
     end
   end
 
@@ -89,9 +90,15 @@ function JwtClaimsHeadersHandler:access(conf)
   kong.ctx.shared.jwt_claims = {}
   kong.ctx.shared.jwt_token = token
 
+  local anonymous_consumer = kong.request.get_headers()[constants.HEADERS.ANONYMOUS]
+  -- Kong JWT plugin makes sure this header can't be spoofed: https://github.com/Kong/kong/blob/ea40d9bc8af59d4d1623eb5464b3b996f5bd007d/kong/plugins/jwt/handler.lua#L111
+  if anonymous_consumer == "true" then
+    return
+  end
+
   local claims = jwt.claims
   for claim_key,claim_value in pairs(claims) do
-    for _,claim_pattern in pairs(conf.claims_to_include) do      
+    for _,claim_pattern in pairs(conf.claims_to_include) do
       if string.match(claim_key, "^"..claim_pattern.."$") then
         ngx.ctx.jwt_claims[claim_key] = claim_value
         kong.ctx.shared.jwt_claims[claim_key] = claim_value
