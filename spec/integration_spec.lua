@@ -149,6 +149,8 @@ describe("jwt-claims-headers", function()
       assert.response(res).has.status(200)
       local user_id = assert.request(res).has.header("x-user-id")
       assert.equal("123", user_id)
+      local user_id_legacy = assert.request(res).has.header("x-user_id")
+      assert.equal("123", user_id_legacy)
       local iss = assert.request(res).has.header("x-iss")
       assert.equal(jwt_secret.key, iss)
 
@@ -173,6 +175,7 @@ describe("jwt-claims-headers", function()
       
       assert.response(res).has.status(200)
       assert.request(res).has.no.header("x-user-id")
+      assert.request(res).has.no.header("x-user_id")
       assert.request(res).has.no.header("x-iss")
       assert.request(res).has.no.header("x-nbf")
       assert.request(res).has.no.header("x-iat")
@@ -180,22 +183,24 @@ describe("jwt-claims-headers", function()
     end)
   end)
 
-  describe("x-user_id header", function() 
-    it("removes any x-user-id header if set on the request", function()
+  describe("x-user_id / x-user-id header", function()
+    it("removes any x-user_id and x-user-id header if set on the request", function()
       local res = assert(proxy_client:send {
         method  = "GET",
         path    = "/headers",
         headers = {
           ["Host"] = "test.com",
-          ["X-user_id"] = "456"
+          ["X-user_id"] = "456",
+          ["X-user-id"] = "789"
         },
       })
       -- Hack the X-Powered-By header so that the kong helpers know the request is coming from mockbin
       -- (https://github.com/Kong/kong/blob/8f36f3175c6a45be237d9ccd4ba227ff66e12d99/spec/helpers.lua#L1329)
       res.headers["X-Powered-By"] = "mock_upstream"
-      
+
       assert.response(res).has.status(200)
       assert.request(res).has.no.header("x-user-id")
+      assert.request(res).has.no.header("x-user_id")
     end)
   end)
 end)

@@ -56,6 +56,7 @@ function JwtClaimsHeadersHandler:access(conf)
   JwtClaimsHeadersHandler.super.access(self)
   local continue_on_error = conf.continue_on_error
   req_clear_header("X-user_id")
+  req_clear_header("X-user-id")
 
   local token, err = retrieve_token(ngx.req, conf)
   
@@ -103,6 +104,9 @@ function JwtClaimsHeadersHandler:access(conf)
         ngx.ctx.jwt_claims[claim_key] = claim_value
         kong.ctx.shared.jwt_claims[claim_key] = claim_value
         req_set_header("X-"..claim_key, claim_value)
+        if claim_key == "user_id" then
+          req_set_header("X-user-id", claim_value)
+        end
       end
     end
   end
