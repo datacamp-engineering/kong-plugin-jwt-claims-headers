@@ -191,7 +191,7 @@ describe("jwt-claims-headers", function()
         headers = {
           ["Host"] = "test.com",
           ["X-user_id"] = "456",
-          ["X-user-id"] = "789"
+          ["x-user-id"] = "789"
         },
       })
       -- Hack the X-Powered-By header so that the kong helpers know the request is coming from mockbin
