@@ -20,13 +20,28 @@ JwtClaimsHeadersHandler.PRIORITY = 970
 -- lower-priority slot (e.g. valid _dct cookie + invalid Bearer token, or
 -- vice-versa). That produced inconsistent auth headers downstream: see
 -- INF-5541.
+--
+-- ngx.req.get_uri_args()/get_headers() return a table (array) instead of a
+-- string when a name is repeated (e.g. ?jwt=a&jwt=b, or two Authorization
+-- headers). jwt_decoder:new() raises a hard Lua error -- not a graceful
+-- nil, err -- when given a non-string, so any such value must be reduced to
+-- its first element (matching Kong's own single-value convention) or
+-- dropped before it ever reaches a candidate list or a decode call.
+local function first_value(value)
+  if type(value) == "table" then
+    return value[1]
+  end
+  return value
+end
+
 local function retrieve_candidate_tokens(request, conf)
   local candidates = {}
 
   local uri_parameters = request.get_uri_args()
   for _, v in ipairs(conf.uri_param_names) do
-    if uri_parameters[v] then
-      table.insert(candidates, uri_parameters[v])
+    local candidate = first_value(uri_parameters[v])
+    if type(candidate) == "string" and candidate ~= "" then
+      table.insert(candidates, candidate)
     end
   end
 
@@ -38,8 +53,8 @@ local function retrieve_candidate_tokens(request, conf)
     end
   end
 
-  local authorization_header = request.get_headers()["authorization"]
-  if authorization_header then
+  local authorization_header = first_value(request.get_headers()["authorization"])
+  if type(authorization_header) == "string" then
     local iterator, iter_err = ngx_re_gmatch(authorization_header, "\\s*[Bb]earer\\s+(.+)")
     if iterator then
       local m, err = iterator()
