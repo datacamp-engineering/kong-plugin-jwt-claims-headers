@@ -100,6 +100,37 @@ describe("jwt-claims-headers", function()
       }
     })
 
+    -- Standalone service (no native `jwt` plugin) so tests can exercise
+    -- jwt-claims-headers's own candidate lookup/fallback in isolation. On
+    -- the shared "test.com" service above, the native `jwt` plugin would
+    -- itself reject a malformed/repeated credential (e.g. "Multiple tokens
+    -- provided") and mark the request anonymous before jwt-claims-headers's
+    -- fallback code ever ran.
+    local standalone_service = bp.services:insert {
+      name = "standalone-service",
+      host = "httpbin",
+      port = 80
+    }
+
+    bp.routes:insert({
+      name = "standalone",
+      preserve_host = true,
+      paths = { "/" },
+      hosts = { "standalone.test.com" },
+      protocols = { "http", "https" },
+      service = { id = standalone_service.id }
+    })
+
+    bp.plugins:insert({
+      name = "jwt-claims-headers",
+      service = { id = standalone_service.id },
+      config = {
+        continue_on_error = true,
+        cookie_names = { "_dct" },
+        uri_param_names = { "jwt" }
+      }
+    })
+
     -- start Kong with your testing Kong configuration (defined in "spec.helpers")
     assert(helpers.start_kong( { plugins = "bundled,jwt-claims-headers" }))
 
@@ -180,6 +211,92 @@ describe("jwt-claims-headers", function()
       assert.request(res).has.no.header("x-nbf")
       assert.request(res).has.no.header("x-iat")
       assert.request(res).has.no.header("x-exp")
+    end)
+
+    it("extracts claims from the token the native jwt plugin actually authenticated, ignoring an invalid credential in a different slot", function()
+      -- Regression test for INF-5541: a valid _dct cookie alongside a
+      -- garbage Authorization header must still resolve x-user-id from the
+      -- cookie (the credential Kong's native `jwt` plugin actually
+      -- authenticated), consistently with x-consumer-username being
+      -- "datacamp-users" and x-anonymous-consumer being unset.
+      local payload = {
+        iss = jwt_secret.key,
+        nbf = os.time(),
+        iat = os.time(),
+        exp = os.time() + 3600,
+        user_id = 456
+      }
+      local valid_jwt = jwt_encoder.encode(payload, rs256_private_key, 'RS256')
+
+      local res = assert(proxy_client:send {
+        method  = "GET",
+        path    = "/headers",
+        headers = {
+          ["Host"] = "test.com",
+          ["Cookie"] = "_dct=" .. valid_jwt .. ";",
+          ["Authorization"] = "Bearer not-a-real-jwt"
+        },
+      })
+      res.headers["X-Powered-By"] = "mock_upstream"
+
+      assert.response(res).has.status(200)
+      local user_id = assert.request(res).has.header("x-user-id")
+      assert.equal("456", user_id)
+      local username = assert.request(res).has.header("x-consumer-username")
+      assert.equal("datacamp-users", username)
+      assert.request(res).has.no.header("x-anonymous-consumer")
+    end)
+
+    it("marks the request anonymous, without a stale x-consumer-username, when no credential authenticates", function()
+      local res = assert(proxy_client:send {
+        method  = "GET",
+        path    = "/headers",
+        headers = {
+          ["Host"] = "test.com",
+          ["Cookie"] = "_dct=not-a-real-jwt;",
+        },
+      })
+      res.headers["X-Powered-By"] = "mock_upstream"
+
+      assert.response(res).has.status(200)
+      assert.request(res).has.no.header("x-user-id")
+      assert.request(res).has.no.header("x-user_id")
+      local anon = assert.request(res).has.header("x-anonymous-consumer")
+      assert.equal("true", anon)
+      local username = assert.request(res).has.header("x-consumer-username")
+      assert.equal("anonymous", username)
+    end)
+  end)
+
+  describe("standalone usage (no native jwt plugin on the route)", function()
+    it("does not error on a repeated uri param and falls back to a valid lower-priority credential", function()
+      -- ngx.req.get_uri_args() returns a table, not a string, when a name
+      -- is repeated (?jwt=a&jwt=b). jwt_decoder:new() raises a hard error
+      -- for non-string input, so this must not reach the decoder as-is.
+      -- The first (garbage) uri-param value should be tried and skipped,
+      -- falling back to the valid _dct cookie.
+      local payload = {
+        iss = jwt_secret.key,
+        nbf = os.time(),
+        iat = os.time(),
+        exp = os.time() + 3600,
+        user_id = 321
+      }
+      local valid_jwt = jwt_encoder.encode(payload, rs256_private_key, 'RS256')
+
+      local res = assert(proxy_client:send {
+        method  = "GET",
+        path    = "/headers?jwt=not-a-real-jwt&jwt=also-not-a-real-jwt",
+        headers = {
+          ["Host"] = "standalone.test.com",
+          ["Cookie"] = "_dct=" .. valid_jwt .. ";"
+        },
+      })
+      res.headers["X-Powered-By"] = "mock_upstream"
+
+      assert.response(res).has.status(200)
+      local user_id = assert.request(res).has.header("x-user-id")
+      assert.equal("321", user_id)
     end)
   end)
 
