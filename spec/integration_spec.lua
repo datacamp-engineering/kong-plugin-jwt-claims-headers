@@ -181,6 +181,60 @@ describe("jwt-claims-headers", function()
       assert.request(res).has.no.header("x-iat")
       assert.request(res).has.no.header("x-exp")
     end)
+
+    it("extracts claims from the token the native jwt plugin actually authenticated, ignoring an invalid credential in a different slot", function()
+      -- Regression test for INF-5541: a valid _dct cookie alongside a
+      -- garbage Authorization header must still resolve x-user-id from the
+      -- cookie (the credential Kong's native `jwt` plugin actually
+      -- authenticated), consistently with x-consumer-username being
+      -- "datacamp-users" and x-anonymous-consumer being unset.
+      local payload = {
+        iss = jwt_secret.key,
+        nbf = os.time(),
+        iat = os.time(),
+        exp = os.time() + 3600,
+        user_id = 456
+      }
+      local valid_jwt = jwt_encoder.encode(payload, rs256_private_key, 'RS256')
+
+      local res = assert(proxy_client:send {
+        method  = "GET",
+        path    = "/headers",
+        headers = {
+          ["Host"] = "test.com",
+          ["Cookie"] = "_dct=" .. valid_jwt .. ";",
+          ["Authorization"] = "Bearer not-a-real-jwt"
+        },
+      })
+      res.headers["X-Powered-By"] = "mock_upstream"
+
+      assert.response(res).has.status(200)
+      local user_id = assert.request(res).has.header("x-user-id")
+      assert.equal("456", user_id)
+      local username = assert.request(res).has.header("x-consumer-username")
+      assert.equal("datacamp-users", username)
+      assert.request(res).has.no.header("x-anonymous-consumer")
+    end)
+
+    it("marks the request anonymous, without a stale x-consumer-username, when no credential authenticates", function()
+      local res = assert(proxy_client:send {
+        method  = "GET",
+        path    = "/headers",
+        headers = {
+          ["Host"] = "test.com",
+          ["Cookie"] = "_dct=not-a-real-jwt;",
+        },
+      })
+      res.headers["X-Powered-By"] = "mock_upstream"
+
+      assert.response(res).has.status(200)
+      assert.request(res).has.no.header("x-user-id")
+      assert.request(res).has.no.header("x-user_id")
+      local anon = assert.request(res).has.header("x-anonymous-consumer")
+      assert.equal("true", anon)
+      local username = assert.request(res).has.header("x-consumer-username")
+      assert.equal("anonymous", username)
+    end)
   end)
 
   describe("x-user_id / x-user-id header", function()
