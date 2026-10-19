@@ -206,7 +206,8 @@ local function diagnose_rejection(jwt, token_count)
   end
 
   -- Only rejected by Kong when the route's jwt plugin lists these claims in
-  -- claims_to_verify, so they are checked after everything else.
+  -- claims_to_verify (Kong checks them before loading the consumer). Most
+  -- routes don't, so they are checked last to keep consumer drift visible.
   local now = ngx.time()
   if type(claims.exp) == "number" and claims.exp <= now then
     diag.reason = "expired"
