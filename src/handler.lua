@@ -256,6 +256,18 @@ local function record_rejection(diag, sources)
   suppressed_warnings = 0
 end
 
+-- Kong's jwt plugin accepts an expired token unless the route lists exp in claims_to_verify.
+local function record_expired_by(jwt)
+  local exp = jwt and jwt.claims and jwt.claims.exp
+  if type(exp) ~= "number" then
+    return
+  end
+  local expired_by = ngx.time() - exp
+  if expired_by >= 0 then
+    kong.log.set_serialize_value("jwt_auth.expired_by_s", math.floor(expired_by))
+  end
+end
+
 function JwtClaimsHeadersHandler:new()
   JwtClaimsHeadersHandler.super.new(self, "jwt-claims-headers")
 end
@@ -317,6 +329,7 @@ function JwtClaimsHeadersHandler:access(conf)
   if kong.client.get_credential() then
     kong.log.set_serialize_value("jwt_auth.result", "authenticated")
     kong.log.set_serialize_value("jwt_auth.worker", ngx.worker.id() or -1)
+    record_expired_by(jwt)
   end
 
   local claims = jwt.claims
