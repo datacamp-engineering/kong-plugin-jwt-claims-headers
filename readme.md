@@ -63,6 +63,7 @@ field|description
 `jwt_auth.shm`, `jwt_auth.l1`|What the node-wide cache and this worker's own cache hold for the issuer's credential: `present`, `negative` (cached "not found"), `absent` or `error`.
 `jwt_auth.consumer_shm`, `jwt_auth.consumer_l1`|The same for the credential's consumer.
 `jwt_auth.sources`|Where tokens were found: `uri`, `cookie`, `header`.
+`jwt_auth.expired_by_s`|Authenticated requests only, and only when the token's `exp` has passed: how many seconds ago it expired. Kong's jwt plugin accepts an expired token unless the route lists `exp` in `claims_to_verify`, so this counts requests forwarded upstream with an expired token.
 
 Kong-side rejections are also logged as a warning, at most once per minute per
 worker. Token contents are never logged.
